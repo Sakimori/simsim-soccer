@@ -65,3 +65,171 @@ class game_events(Enum):
     free_kick_goal = "makes the free kick, and scores!"
     goalie_punt = "kicks the ball downfield."
     goalie_throw = "yeets the ball downfield."
+    injury = "is injured! {} comes in to replace them." #requires .format(substitute)
+
+class player(object):
+    def __init__(self, json_string):
+        self.stlats = json.loads(json_string)
+        self.id = self.stlats["id"]
+        self.name = self.stlats["name"]
+        self.game_stats = {
+                            "possession_time" : 0,
+                            "shots" : 0,
+                            "goals" : 0,
+                            "misses" : 0,
+                            "passes" : 0,
+                            "tackles" : 0,
+                            "penalties" : 0,
+                            "cards" : 0,
+                            "blocks" : 0,
+                            "offsides" : 0,
+                            "corner_kicks" : 0,
+                            "free_kicks" : 0,
+                            "saves" : 0
+            }
+
+    def star_string(self, key):
+        str_out = ""
+        starstring = str(self.stlats[key])
+        if ".5" in starstring:
+            starnum = int(starstring[0])
+            addhalf = True
+        else:
+            starnum = int(starstring[0])
+            addhalf = False
+        str_out += "⭐" * starnum
+        if addhalf:
+            str_out += "✨"
+        return str_out
+
+    def __str__(self):
+        return self.name
+
+class team(object):
+    def __init__(self):
+        self.name = None
+        self.starters = []
+        self.bench = []
+        self.goalies = []
+        self.goalie = None
+        self.active_players = []
+        self.slogan = None
+
+    def find_player(self, name):
+        for index in range(0,len(self.starters)):
+            if self.starters[index].name == name:
+                return (self.starters[index], index, self.starters)
+        for index in range(0,len(self.bench)):
+            if self.bench[index].name == name:
+                return (self.bench[index], index, self.bench)
+        for index in range(0,len(self.goalies)):
+            if self.goalies[index].name == name:
+                return (self.goalies[index], index, self.goalies)
+        else:
+            return (None, None, None)
+
+    def find_player_spec(self, name, roster):
+         for s_index in range(0,len(roster)):
+            if roster[s_index].name == name:
+                return (roster[s_index], s_index)
+
+    def swap_player(self, name, to_roster):
+        this_player, index, roster = self.find_player(name)
+        if this_player is not None and len(roster) > 1:
+            if roster == self.lineup:
+                if self.add_pitcher(this_player):
+                    roster.pop(index)
+                    return True
+            else:
+                if self.add_lineup(this_player)[0]:
+                    self.rotation.pop(index)
+                    return True
+        return False
+
+    def delete_player(self, name):
+        this_player, index, roster = self.find_player(name)
+        if this_player is not None and len(roster) > 1:
+            roster.pop(index)
+            return True
+        else:
+            return False
+
+    def slide_player(self, name, new_spot):
+        this_player, index, roster = self.find_player(name)
+        if this_player is not None and new_spot <= len(roster):
+            roster.pop(index)
+            roster.insert(new_spot-1, this_player)
+            return True
+        else:
+            return False
+
+    def slide_player_spec(self, this_player_name, new_spot, roster):
+        index = None
+        for s_index in range(0,len(roster)):
+            if roster[s_index].name == this_player_name:
+                index = s_index
+                this_player = roster[s_index]
+        if index is None:
+            return False
+        elif new_spot <= len(roster):
+            roster.pop(index)
+            roster.insert(new_spot-1, this_player)
+            return True
+        else:
+            return False
+                
+    def add_starter(self, new_player):
+        if len(self.starters) < 18:
+            self.starters.append(new_player)
+            return (True,)
+        else:
+            return (False, "18 players on the field, maximum. We're being really generous here.")
+    
+    def add_goalie(self, new_player):
+        if len(self.goalies) < 4:
+            self.goalies.append(new_player)
+            return True
+        else:
+            return False
+
+    def add_sub(self, new_player):
+        if len(self.bench) < 4:
+            self.bench.append(new_player)
+            return True
+        else:
+            return False
+
+    def set_goalie(self, rotation_slot = None, use_lineup = False):
+        temp_rotation = self.goalies.copy()
+        if use_lineup:         
+            for member in self.bench + self.starters:
+                temp_rotation.append(member)
+        if rotation_slot is None:
+            self.goalie = random.choice(temp_rotation)
+        else:
+            self.goalie = temp_rotation[(rotation_slot-1) % len(temp_rotation)]
+
+    def is_ready(self):
+        try:
+            return (len(self.starters) >= 1 and len(self.goalies) > 0)
+        except AttributeError:
+            self.goalies = [self.goalie]
+            self.goalie = None
+            return (len(self.starters) >= 1 and len(self.goalies) > 0)
+
+    def prepare_for_save(self):
+        self.goalie = None
+        for this_player in self.starters + self.rotation + self.bench:
+            for stat in this_player.game_stats.keys():
+                this_player.game_stats[stat] = 0
+        return self
+
+    def finalize(self):
+        if self.is_ready():
+            if self.goalie == None:
+                self.set_goalie()
+            while len(self.starters) <= 2:
+                self.starters.append(random.choice(self.starters))       
+            return self
+        else:
+            return False
