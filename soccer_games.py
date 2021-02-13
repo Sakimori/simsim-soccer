@@ -1,5 +1,6 @@
 import json, random, os, math, jsonpickle
 from enum import Enum
+from datetime import time, timedelta
 import database as db
 
 data_dir = "data"
@@ -11,7 +12,7 @@ def config():
     if not os.path.exists(games_config_file):
         #generate default config
         config_dic = {
-                "default_length" : 3,
+                "default_length" : 90,
                 "stlat_weights" : {
                         #what stats am i even going to use??????
                     },
@@ -114,6 +115,7 @@ class team(object):
         self.goalie = None
         self.active_players = []
         self.slogan = None
+        self.score = 0
 
     def find_player(self, name):
         for index in range(0,len(self.starters)):
@@ -219,6 +221,7 @@ class team(object):
 
     def prepare_for_save(self):
         self.goalie = None
+        self.score = 0
         for this_player in self.starters + self.rotation + self.bench:
             for stat in this_player.game_stats.keys():
                 this_player.game_stats[stat] = 0
@@ -233,3 +236,31 @@ class team(object):
             return self
         else:
             return False
+
+class game(object):
+
+    def __init__(self, team1, team2, length=None):
+        self.over = False
+        self.teams = {"left" : team1, "right" : team2}
+        self.current_time = timedelta(hour=0,minute=0,second=0)
+        self.cards = {} #player: card number
+        self.injuries = []
+        self.goals = {} #player: timestamp
+        self.last_update = ({},"") #this is a ({outcome}, "additional_string") tuple
+        self.owner = None
+        self.ready = False
+        self.injury_time = timedelta(hour=0,minute=1,second=0)
+        self.posession = {"team" : None, "player" : None}
+        if length is not None:
+            self.duration = length
+        else:
+            self.duration = config()["default_length"]
+        self.weather = weather("Sunny","🌞")
+
+        def get_goalie(self):
+            if self.posession["team"] == self.teams["left"]:
+                return self.teams["right"].goalie
+            else:
+                return self.teams["left"].goalie
+
+config()
