@@ -16,6 +16,9 @@ def config():
                 "stlat_weights" : {
                         #what stats am i even going to use??????
                     },
+                "rng_breakpoints" : {
+                    
+                    }
             }
         with open(games_config_file, "w") as config_file:
             json.dump(config_dic, config_file, indent=4)
@@ -38,18 +41,25 @@ def all_weathers():
     return weathers_dic
 
 class game_events(Enum):
-    player_pass_success = "passes to"
-    player_pass_intercepted = "attempts a pass to {}, but the ball is intercepted by" #requires .format(reciever)
+    pass_success = "passes to"
+    pass_intercepted = "attempts a pass to {}, but the ball is intercepted by" #requires .format(reciever)
     tackles_in = "tackles"
     tackles_out = "tackles {}, sending the ball out of bounds! {} takes the throw-in." #requires .format(possesser, thrower)
     tackle_dodge = "attempts to tackle {}, but they dribble around!" #requires .format(possesser)
     collect_ball = "takes possession of the ball."
-    player_dribble = "dribbles" #direction would be nice to have
-    player_shot_save = "shoots, but {} makes the save!" #requires .format(goalie)
-    player_shot_goal = "shoots and scores!"
-    player_head_goal = "heads the ball into the net and scores!"
-    player_head_save = "heads the ball, but {} makes the save!" #requires .format(goalie)
-    player_shot_miss = "shoots and misses! {} sets up for a goal kick." #requires .format(goalie)
+    cross = "crosses it in!"
+    dribble = "dribbles" #direction would be nice to have
+    header = "heads it" #direction here too
+    juke = "jukes around {} and dribbles" #direction??? requires .format(defender)
+    shot_miss = "shoots and misses! {} sets up for a goal kick." #requires .format(goalie)
+    shot_goal = "shoots and scores!"
+    shot_save_capture = "shoots, but {} makes the save!" #requires .format(goalie)
+    shot_save_deflect = "shoots, but {} deflects the shot out of bounds!" #requires .format(goalie)   
+    head_miss = "heads the ball towards the net, but misses. {} sets up for a goal kick." #requires .format(goalie)
+    head_goal = "heads the ball into the net and scores!"
+    head_save_capture = "heads the ball, but {} makes the save!" #requires .format(goalie)
+    head_save_deflect = "heads the ball, but {} deflects the shot out of bounds!" #requires .format(goalie)     
+    clear_ball = "clears the ball away!"
     foul_free = "is fouled by {}, and is awarded a free kick!" #requires .format(defender)
     foul_penalty = "is fouled by {}, and is awarded a penalty kick!" #requires .format(defender)
     red_card = "gets a red card!"
@@ -237,6 +247,54 @@ class team(object):
         else:
             return False
 
+class soccer_ball(object):
+    def __init__(self):
+        self.x = 0.5
+        self.y = 0.5
+
+    def position(self):
+        if self.x < 0.09:
+            if self.y > 0.13 and self.y < 0.86:
+                return ball_locations.left_penalty
+            else:
+                return ball_locations.left_sides
+        elif self.x < 0.33:
+            return ball_locations.left_field
+        elif self.x < 0.67:
+            return ball_locations.center
+        elif self.x < 0.91:
+            if self.y > 0.13 and self.y < 0.86:
+                return ball_locations.right_penalty
+            else:
+                return ball_locations.right_sides
+
+    def corner_kick_pos(self, top, left):
+        if top:
+            self.y = 1.0
+        else:
+            self.y = 0.0
+        if left:
+            self.x = 0.0
+        else:
+            self.x = 1.0
+
+    def goal_kick_pos(self, left):
+        if left:
+            self.x = 0.06
+        else:
+            self.x = 0.94
+        self.y = (random.random()*0.33)+0.33
+
+class ball_locations(Enum):
+    left_penalty = 1
+    left_sides = 2
+    left_field = 3
+    center = 4
+    right_field = 5
+    right_sides = 6
+    right_penalty = 7
+
+
 class game(object):
 
     def __init__(self, team1, team2, length=None):
@@ -246,11 +304,12 @@ class game(object):
         self.cards = {} #player: card number
         self.injuries = []
         self.goals = {} #player: timestamp
-        self.last_update = ({},"") #this is a ({outcome}, "additional_string") tuple
+        self.last_update = ({}, [], "") #this is a ({outcome}, [extra players], "additional_string") tuple
         self.owner = None
         self.ready = False
         self.injury_time = timedelta(hour=0,minute=1,second=0)
         self.posession = {"team" : None, "player" : None}
+        self.ball = soccer_ball()
         if length is not None:
             self.duration = length
         else:
