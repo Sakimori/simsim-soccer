@@ -66,7 +66,7 @@ class game_events(Enum):
     foul_penalty = "is fouled by {}, and is awarded a penalty kick!" #requires .format(defender)
     red_card = "gets a red card!"
     yellow_card = "gets a yellow card."
-    offsides = "passes to {}, but is called offsides. {} sets up for a free kick." #requires .format(reciever, goalie)
+    offsides = "passes to {}, but is called offsides. {} sets up for a free kick." #requires .format(reciever, defender)
     out_side = "plays out of bounds. {} takes the throw-in." #requires .format(thrower)
     out_back_self = "deflects the ball out of bounds. {} sets up for a corner kick."
     throw_in = "throws in to"
