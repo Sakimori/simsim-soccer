@@ -43,6 +43,7 @@ def all_weathers():
 class game_events(Enum):
     pass_success = "passes to"
     pass_intercepted = "attempts a pass to {}, but the ball is intercepted by" #requires .format(reciever)
+    pass_miss = "sends a pass to {}, but it goes wide!" #requires .format(reciever)
     tackles_in = "tackles"
     tackles_out = "tackles {}, sending the ball out of bounds! {} takes the throw-in." #requires .format(possesser, thrower)
     tackle_dodge = "attempts to tackle {}, but they dribble around!" #requires .format(possesser)
@@ -51,6 +52,7 @@ class game_events(Enum):
     dribble = "dribbles" #direction would be nice to have
     header = "heads it" #direction here too
     juke = "jukes around {} and dribbles" #direction??? requires .format(defender)
+    breakaway = "breaks away!"
     shot_miss = "shoots and misses! {} sets up for a goal kick." #requires .format(goalie)
     shot_goal = "shoots and scores!"
     shot_save_capture = "shoots, but {} makes the save!" #requires .format(goalie)
