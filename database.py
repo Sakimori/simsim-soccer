@@ -43,27 +43,27 @@ def initialcheck():
                                         player_json_string text NOT NULL
                                     );"""
 
-    player_stats_table_check_string = """ CREATE TABLE IF NOT EXISTS stats (
+    player_stats_table_check_string = """ CREATE TABLE IF NOT EXISTS soccer_stats (
                                             counter integer PRIMARY KEY,
                                             id text,
                                             name text,
                                             json_string text,
-                                            outs_pitched integer DEFAULT 0,
-                                            walks_allowed integer DEFAULT 0,
-                                            hits_allowed integer DEFAULT 0,
-                                            strikeouts_given integer DEFAULT 0,
-                                            runs_allowed integer DEFAULT 0,
-                                            plate_appearances integer DEFAULT 0,
-                                            walks_taken integer DEFAULT 0,
-                                            sacrifices integer DEFAULT 0,
-                                            hits integer DEFAULT 0,
-                                            home_runs integer DEFAULT 0,
-                                            total_bases integer DEFAULT 0,
-                                            rbis integer DEFAULT 0,
-                                            strikeouts_taken integer DEFAULT 0
+                                            possession_time integer DEFAULT 0,
+                                            shots integer DEFAULT 0,
+                                            goals integer DEFAULT 0,
+                                            misses integer DEFAULT 0,
+                                            passes integer DEFAULT 0,
+                                            tackles integer DEFAULT 0,
+                                            penalties integer DEFAULT 0,
+                                            cards integer DEFAULT 0,
+                                            blocks integer DEFAULT 0,
+                                            offsides integer DEFAULT 0,
+                                            corner_kicks integer DEFAULT 0,
+                                            free_kicks integer DEFAULT 0,
+                                            saves integer DEFAULT 0
                                             );"""
 
-    teams_table_check_string = """ CREATE TABLE IF NOT EXISTS teams (
+    teams_table_check_string = """ CREATE TABLE IF NOT EXISTS soccer_teams (
                                             counter integer PRIMARY KEY,
                                             name text NOT NULL,
                                             team_json_string text NOT NULL,
@@ -205,7 +205,7 @@ def save_team(name, team_json_string, user_id):
     try:
         if conn is not None:
             c = conn.cursor()
-            store_string = """ INSERT INTO teams(name, team_json_string, timestamp, owner_id)
+            store_string = """ INSERT INTO soccer_teams(name, team_json_string, timestamp, owner_id)
                             VALUES (?,?, ?, ?) """
             c.execute(store_string, (re.sub('[^A-Za-z0-9 ]+', '', name), team_json_string, datetime.datetime.now(datetime.timezone.utc), user_id)) #this regex removes all non-standard characters
             conn.commit() 
@@ -223,7 +223,7 @@ def update_team(name, team_json_string):
     try:
         if conn is not None:
             c = conn.cursor()
-            store_string = "UPDATE teams SET team_json_string = ? WHERE name=?"
+            store_string = "UPDATE soccer_teams SET team_json_string = ? WHERE name=?"
             c.execute(store_string, (team_json_string, (re.sub('[^A-Za-z0-9 ]+', '', name)))) #this regex removes all non-standard characters
             conn.commit() 
             conn.close()
@@ -241,7 +241,7 @@ def get_team(name, owner=False):
     if conn is not None:
         c = conn.cursor()
         if not owner:
-            c.execute("SELECT team_json_string FROM teams WHERE name=?", (re.sub('[^A-Za-z0-9 ]+', '', name),)) #see above note re: regex
+            c.execute("SELECT team_json_string FROM soccer_teams WHERE name=?", (re.sub('[^A-Za-z0-9 ]+', '', name),)) #see above note re: regex
         else:
             c.execute("SELECT * FROM teams WHERE name=?", (re.sub('[^A-Za-z0-9 ]+', '', name),)) #see above note re: regex
         team = c.fetchone()
@@ -260,7 +260,7 @@ def delete_team(team):
     if conn is not None:
         try:
             c = conn.cursor()
-            c.execute("DELETE FROM teams WHERE name=?", (re.sub('[^A-Za-z0-9 ]+', '', team.name),))
+            c.execute("DELETE FROM soccer_teams WHERE name=?", (re.sub('[^A-Za-z0-9 ]+', '', team.name),))
             conn.commit()
             conn.close()
             return True
@@ -275,7 +275,7 @@ def assign_owner(team_name, owner_id):
     if conn is not None:
         try:
             c = conn.cursor()
-            c.execute("UPDATE teams SET owner_id = ? WHERE name = ?",(owner_id, re.sub('[^A-Za-z0-9 ]+', '', team_name)))
+            c.execute("UPDATE soccer_teams SET owner_id = ? WHERE name = ?",(owner_id, re.sub('[^A-Za-z0-9 ]+', '', team_name)))
             conn.commit()
             conn.close()
             return True
@@ -289,7 +289,7 @@ def get_all_teams():
     conn = create_connection()
     if conn is not None:
         c = conn.cursor()
-        c.execute("SELECT team_json_string FROM teams")
+        c.execute("SELECT team_json_string FROM soccer_teams")
         team_strings = c.fetchall()
         conn.close()
         return team_strings
@@ -301,7 +301,7 @@ def search_teams(search_string):
     conn = create_connection()
     if conn is not None:
         c = conn.cursor()
-        c.execute("SELECT team_json_string FROM teams WHERE name LIKE ?",(re.sub('[^A-Za-z0-9 %]+', '', f"%{search_string}%"),))
+        c.execute("SELECT team_json_string FROM soccer_teams WHERE name LIKE ?",(re.sub('[^A-Za-z0-9 %]+', '', f"%{search_string}%"),))
         team_json_strings = c.fetchall()
         conn.close()
         return team_json_strings
@@ -314,16 +314,16 @@ def add_stats(player_game_stats_list):
     if conn is not None:
         c=conn.cursor()
         for (name, player_stats_dic) in player_game_stats_list:
-            c.execute("SELECT * FROM stats WHERE name=?",(name,))
+            c.execute("SELECT * FROM soccer_stats WHERE name=?",(name,))
             this_player = c.fetchone()
             if this_player is not None:
                 for stat in player_stats_dic.keys():
-                    c.execute(f"SELECT {stat} FROM stats WHERE name=?",(name,))
+                    c.execute(f"SELECT {stat} FROM soccer_stats WHERE name=?",(name,))
                     old_value = int(c.fetchone()[0])
-                    c.execute(f"UPDATE stats SET {stat} = ? WHERE name=?",(player_stats_dic[stat]+old_value,name))
+                    c.execute(f"UPDATE soccer_stats SET {stat} = ? WHERE name=?",(player_stats_dic[stat]+old_value,name))
             else:
-                c.execute("INSERT INTO stats(name) VALUES (?)",(name,))
+                c.execute("INSERT INTO soccer_stats(name) VALUES (?)",(name,))
                 for stat in player_stats_dic.keys():
-                    c.execute(f"UPDATE stats SET {stat} = ? WHERE name=?",(player_stats_dic[stat],name))
+                    c.execute(f"UPDATE soccer_stats SET {stat} = ? WHERE name=?",(player_stats_dic[stat],name))
         conn.commit()
     conn.close()
