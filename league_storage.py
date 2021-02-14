@@ -2,7 +2,7 @@ import os, json, re, jsonpickle
 import sqlite3 as sql
 
 data_dir = "data"
-league_dir = "leagues"
+league_dir = "soccerleagues"
 statements_file = os.path.join(data_dir, "sql_statements.xvi")
 
 def create_connection(league_name):
@@ -100,20 +100,20 @@ def init_league_db(league):
                                             counter integer PRIMARY KEY,
                                             id text,
                                             name text,
-                                            team_name text,
-                                            outs_pitched integer DEFAULT 0,
-                                            walks_allowed integer DEFAULT 0,
-                                            hits_allowed integer DEFAULT 0,
-                                            strikeouts_given integer DEFAULT 0,
-                                            runs_allowed integer DEFAULT 0,
-                                            plate_appearances integer DEFAULT 0,
-                                            walks_taken integer DEFAULT 0,
-                                            sacrifices integer DEFAULT 0,
-                                            hits integer DEFAULT 0,
-                                            home_runs integer DEFAULT 0,
-                                            total_bases integer DEFAULT 0,
-                                            rbis integer DEFAULT 0,
-                                            strikeouts_taken integer DEFAULT 0
+                                            json_string text,
+                                            possession_time integer DEFAULT 0,
+                                            shots integer DEFAULT 0,
+                                            goals integer DEFAULT 0,
+                                            misses integer DEFAULT 0,
+                                            passes integer DEFAULT 0,
+                                            tackles integer DEFAULT 0,
+                                            penalties integer DEFAULT 0,
+                                            cards integer DEFAULT 0,
+                                            blocks integer DEFAULT 0,
+                                            offsides integer DEFAULT 0,
+                                            corner_kicks integer DEFAULT 0,
+                                            free_kicks integer DEFAULT 0,
+                                            saves integer DEFAULT 0
                                             );"""
 
     teams_table_check_string = """ CREATE TABLE IF NOT EXISTS teams (
@@ -121,7 +121,7 @@ def init_league_db(league):
                                             name text NOT NULL,
                                             wins integer DEFAULT 0,
                                             losses integer DEFAULT 0,
-                                            run_diff integer DEFAULT 0
+                                            point_diff integer DEFAULT 0
                                         ); """
 
     if conn is not None:
