@@ -100,7 +100,11 @@ class player(object):
                             "free_kicks" : 0,
                             "saves" : 0
             }
-
+        self.stlats["speed_stars"] = self.stlats["baserunning_stars"]
+        self.stlats["striking_stars"] = self.stlats["pitching_stars"]
+        self.stlats["goalkeeping_stars"] = self.stlats["batting_stars"]
+        self.stlats["ballhandling_stars"] = self.stlats["defense_stars"]
+     
     def star_string(self, key):
         str_out = ""
         starstring = str(self.stlats[key])
