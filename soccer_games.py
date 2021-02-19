@@ -238,7 +238,7 @@ class team(object):
     def prepare_for_save(self):
         self.goalie = None
         self.score = 0
-        for this_player in self.starters + self.rotation + self.bench:
+        for this_player in self.starters + self.goalies + self.bench:
             for stat in this_player.game_stats.keys():
                 this_player.game_stats[stat] = 0
         return self
@@ -370,13 +370,13 @@ def get_team_and_owner(name):
         return None
 
 def save_team(this_team, user_id):
-    try:
-        this_team.prepare_for_save()
-        team_json_string = jsonpickle.encode(this_team, keys=True)
-        db.save_team(this_team.name, team_json_string, user_id)
-        return True
-    except:
-        return None
+    #try:
+    this_team.prepare_for_save()
+    team_json_string = jsonpickle.encode(this_team, keys=True)
+    db.save_team(this_team.name, team_json_string, user_id)
+    return True
+    #except:
+        #return None
 
 def update_team(this_team):
     try:
