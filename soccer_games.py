@@ -1,4 +1,4 @@
-import json, random, os, math, jsonpickle
+import json, random, os, math, jsonpickle, games
 from enum import Enum
 from datetime import time, timedelta
 import database as db
@@ -114,9 +114,9 @@ class player(object):
         else:
             starnum = int(starstring[0])
             addhalf = False
-        str_out += "⭐" * starnum
+        str_out += "⚽ " * starnum
         if addhalf:
-            str_out += "✨"
+            str_out += "🏈"
         return str_out
 
     def __str__(self):
@@ -328,4 +328,90 @@ class game(object):
             else:
                 return self.teams["left"].goalie
 
+def get_team(name):
+    #try:
+    team_tuple, is_soccer = db.get_team(name, owner=True)
+    team_json = jsonpickle.decode(team_tuple[2], keys=True, classes=(team, games.team))
+    if team_json is not None:
+        if not is_soccer: #detects baseball teams, converts
+            convert_team = team()
+            convert_team.name = team_json.name
+            convert_team.slogan = team_json.slogan
+            for pitcher in team_json.rotation:
+                convert_team.add_goalie(player(json.dumps(pitcher.stlats)))
+            for index in range(0,len(team_json.lineup)-1):
+                convert_team.add_starter(player(json.dumps(team_json.lineup[index].stlats)))
+            convert_team.add_sub(player(json.dumps(team_json.lineup[len(team_json.lineup)-1].stlats)))
+            save_team(convert_team, team_tuple[4])
+            team_json = convert_team
+        return team_json
+    return None
+    #except:
+        #return None
+
+def get_team_and_owner(name):
+    try:
+        counter, name, team_json_string, timestamp, owner_id = db.get_team(name, owner=True)
+        team_json = jsonpickle.decode(team_json_string, keys=True, classes=team)
+        if team_json is not None:
+            if team_json.pitcher is not None: #detects old-format teams, adds pitcher
+                team_json.rotation.append(team_json.pitcher)
+                team_json.pitcher = None
+                update_team(team_json)
+            return (team_json, owner_id)
+        return None
+    except AttributeError:
+        team_json.rotation = []
+        team_json.rotation.append(team_json.pitcher)
+        team_json.pitcher = None
+        update_team(team_json)
+        return (team_json, owner_id)
+    except:
+        return None
+
+def save_team(this_team, user_id):
+    try:
+        this_team.prepare_for_save()
+        team_json_string = jsonpickle.encode(this_team, keys=True)
+        db.save_team(this_team.name, team_json_string, user_id)
+        return True
+    except:
+        return None
+
+def update_team(this_team):
+    try:
+        this_team.prepare_for_save()
+        team_json_string = jsonpickle.encode(this_team, keys=True)
+        db.update_team(this_team.name, team_json_string)
+        return True
+    except:
+        return None
+
+def get_all_teams():
+    teams = []
+    for team_pickle in db.get_all_teams():
+        this_team = jsonpickle.decode(team_pickle[0], keys=True, classes=team)
+        teams.append(this_team)
+    return teams
+
+def search_team(search_term):
+    teams = []
+    for team_pickle in db.search_teams(search_term):
+        team_json = jsonpickle.decode(team_pickle[0], keys=True, classes=team)
+        try:         
+            if team_json.pitcher is not None:
+                if len(team_json.rotation) == 0: #detects old-format teams, adds pitcher
+                    team_json.rotation.append(team_json.pitcher)
+                    team_json.pitcher = None
+                    update_team(team_json)
+        except AttributeError:
+            team_json.rotation = []
+            team_json.rotation.append(team_json.pitcher)
+            team_json.pitcher = None
+            update_team(team_json)
+        except:
+            return None
+
+        teams.append(team_json)
+    return teams
 config()

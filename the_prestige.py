@@ -1,4 +1,4 @@
-import discord, json, math, os, roman, games, asyncio, random, main_controller, threading, time, urllib, leagues, datetime, soccer_games
+import discord, json, math, os, roman, asyncio, random, main_controller, threading, time, urllib, leagues, datetime, soccer_games
 import database as db
 import onomancer as ono
 from league_storage import league_exists, season_save, season_restart
@@ -247,8 +247,11 @@ class SaveTeamCommand(Command):
     template = """m;saveteam
    [name] 
    [slogan] 
-   [lineup]
-   [rotation]"""
+   [starters]
+
+   [goalies]
+   
+   [bench]"""
 
     description = """Saves a team to the database allowing it to be used for games. Send this command at the top of a list, with entries separated by new lines (shift+enter in discord, or copy+paste from notepad).
   - the first line of the list is your team's name.
@@ -1788,81 +1791,74 @@ def build_draft_embed(names, title="The Draft", footer="You must choose"):
 
 def build_team_embed(team):
     embed = discord.Embed(color=discord.Color.purple(), title=team.name)
-    lineup_string = ""
-    for player in team.lineup:
-        lineup_string += f"{player.name} {player.star_string('batting_stars')}\n"
+    goalies_string = ""
+    for player in team.goalies:
+        goalies_string += f"{player.name} {player.star_string('goalkeeping_stars')}\n"
 
-    rotation_string = ""
-    for player in team.rotation:
-        rotation_string += f"{player.name} {player.star_string('pitching_stars')}\n"
-    embed.add_field(name="Rotation:", value=rotation_string, inline = False)
-    embed.add_field(name="Lineup:", value=lineup_string, inline = False)
+    starters_string = ""
+    for player in team.starters:
+        starters_string += f"{player.name} {player.star_string('striking_stars')}\n"
+
+    bench_string = ""
+    for player in team.bench:
+        bench_string += f"{player.name} {player.star_string('striking_stars')}\n"
+
+    embed.add_field(name="Goalies:", value=goalies_string, inline = False)
+    embed.add_field(name="Starters:", value=starters_string, inline = False)
+    if bench_string != "":
+        embed.add_field(name="Bench:", value=bench_string, inline = False)
     embed.add_field(name="█a██:", value=str(abs(hash(team.name)) % (10 ** 4)))
     embed.set_footer(text=team.slogan)
     return embed
 
 def build_star_embed(player_json):
-    starkeys = {"batting_stars" : "Batting", "pitching_stars" : "Pitching", "baserunning_stars" : "Baserunning", "defense_stars" : "Defense"}
+    starkeys = {"goalkeeping_stars" : "Goalkeeping", "striking_stars" : "Striking", "speed_stars" : "Speed", "ballhandling_stars" : "Ball Handling"}
     embed = discord.Embed(color=discord.Color.purple(), title=player_json["name"])
     for key in starkeys.keys():
         embedstring = ""
         starstring = str(player_json[key])
         starnum = int(starstring[0])
         addhalf = ".5" in starstring
-        embedstring += "⭐" * starnum
+        embedstring += "⚽ " * starnum
         if addhalf:
-            embedstring += "✨"
+            embedstring += "🏈"
         elif starnum == 0:  # why check addhalf twice, amirite
             embedstring += "⚪️"
         embed.add_field(name=starkeys[key], value=embedstring, inline=False)
     return embed
 
-def team_from_collection(newteam_json):
-    # verify collection against our own restrictions
-    if len(newteam_json["fullName"]) > 30:
-        raise CommandError("Team names have to be less than 30 characters! Try again.")
-    if len(newteam_json["slogan"]) > 100:
-        raise CommandError("We've given you 100 characters for the slogan. Discord puts limits on us and thus, we put limits on you. C'est la vie.")
-    if len(newteam_json["lineup"]) > 20:
-        raise CommandError("20 players in the lineup, maximum. We're being really generous here.")
-    if len(newteam_json["rotation"]) > 8:
-        raise CommandError("8 pitchers on the rotation, max. That's a *lot* of pitchers.")
-    for player in newteam_json["lineup"] + newteam_json["rotation"]:
-        if len(player["name"]) > 70:
-            raise CommandError(f"{player['name']} is too long, chief. 70 or less.")
-
-    #actually build the team
-    newteam = games.team()
-    newteam.name = newteam_json["fullName"]
-    newteam.slogan = newteam_json["slogan"]
-    for player in newteam_json["lineup"]:
-        newteam.add_lineup(games.player(json.dumps(player)))
-    for player in newteam_json["rotation"]:
-        newteam.add_pitcher(games.player(json.dumps(player)))
-
-    return newteam
-
 def team_from_message(command):
-    newteam = games.team()
+    newteam = soccer_games.team()
     roster = command.split("\n",1)[1].split("\n")
     newteam.name = roster[0].strip() #first line is team name
     newteam.slogan = roster[1].strip() #second line is slogan
     if not roster[2].strip() == "":
         raise CommandError("The third line should be blank. It wasn't, so just in case, we've not done anything on our end.")
-    pitchernum = len(roster)-2
+    goalienum = len(roster)-2
+    benchnum = len(roster)
     for rosternum in range(3,len(roster)-1):
         if roster[rosternum] != "":
             if len(roster[rosternum]) > 70:
                 raise CommandError(f"{roster[rosternum]} is too long, chief. 70 or less.")
-            newteam.add_lineup(games.player(ono.get_stats(roster[rosternum].rstrip())))
+            newteam.add_starter(soccer_games.player(ono.get_stats(roster[rosternum].rstrip())))
         else:
-            pitchernum = rosternum + 1 
+            goalienum = rosternum + 1 
             break
 
-    for rosternum in range(pitchernum, len(roster)):
-        if len(roster[rosternum]) > 70:
-            raise CommandError(f"{roster[len(roster)-1]} is too long, chief. 70 or less.")
-        newteam.add_pitcher(games.player(ono.get_stats(roster[rosternum].rstrip()))) 
+    for rosternum in range(goalienum, len(roster)):
+        if roster[rosternum] != "":
+            if len(roster[rosternum]) > 70:
+                raise CommandError(f"{roster[len(roster)-1]} is too long, chief. 70 or less.")
+            newteam.add_goalie(soccer_games.player(ono.get_stats(roster[rosternum].rstrip()))) 
+        else:
+            benchnum = rosternum+1
+
+    if benchnum < rosternum:
+        for rosternum in range(benchnum, len(roster)):
+            if len(roster[rosternum]) > 70:
+                raise CommandError(f"{roster[len(roster)-1]} is too long, chief. 70 or less.")
+            newteam.add_sub(soccer_games.player(ono.get_stats(roster[rosternum].rstrip()))) 
+
 
     if len(newteam.name) > 30:
         raise CommandError("Team names have to be less than 30 characters! Try again.")
@@ -1983,9 +1979,9 @@ def game_over_embed(game):
     return embed
 
 def get_team_fuzzy_search(team_name):
-    team = games.get_team(team_name)
+    team = soccer_games.get_team(team_name)
     if team is None:
-        teams = games.search_team(team_name.lower())
+        teams = soccer_games.search_team(team_name.lower())
         if len(teams) == 1:
             team = teams[0]
     return team

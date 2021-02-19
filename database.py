@@ -63,9 +63,17 @@ def initialcheck():
                                             saves integer DEFAULT 0
                                             );"""
 
-    teams_table_check_string = """ CREATE TABLE IF NOT EXISTS soccer_teams (
+    teams_table_check_string = """ CREATE TABLE IF NOT EXISTS teams (
                                             counter integer PRIMARY KEY,
-                                            name text NOT NULL,
+                                            name text NOT NULL UNIQUE,
+                                            team_json_string text NOT NULL,
+                                            timestamp text NOT NULL,
+                                            owner_id integer
+                                        ); """
+
+    soccer_teams_table_check_string = """ CREATE TABLE IF NOT EXISTS soccer_teams (
+                                            counter integer PRIMARY KEY,
+                                            name text NOT NULL UNIQUE,
                                             team_json_string text NOT NULL,
                                             timestamp text NOT NULL,
                                             owner_id integer
@@ -78,6 +86,7 @@ def initialcheck():
         c.execute(player_table_check_string)
         c.execute(player_stats_table_check_string)
         c.execute(teams_table_check_string)
+        c.execute(soccer_teams_table_check_string)
 
     conn.commit()
     conn.close()
@@ -240,15 +249,25 @@ def get_team(name, owner=False):
     conn = create_connection()
     if conn is not None:
         c = conn.cursor()
+        is_soccer_team = True
         if not owner:
             c.execute("SELECT team_json_string FROM soccer_teams WHERE name=?", (re.sub('[^A-Za-z0-9 ]+', '', name),)) #see above note re: regex
         else:
-            c.execute("SELECT * FROM teams WHERE name=?", (re.sub('[^A-Za-z0-9 ]+', '', name),)) #see above note re: regex
+            c.execute("SELECT * FROM soccer_teams WHERE name=?", (re.sub('[^A-Za-z0-9 ]+', '', name),)) #see above note re: regex
         team = c.fetchone()
+
+        if team is None:
+            if not owner:
+                c.execute("SELECT team_json_string FROM teams WHERE name=?", (re.sub('[^A-Za-z0-9 ]+', '', name),)) #see above note re: regex
+            else:
+                c.execute("SELECT * FROM teams WHERE name=?", (re.sub('[^A-Za-z0-9 ]+', '', name),)) #see above note re: regex
+            is_soccer_team = False
+            team = c.fetchone()
+
         
         conn.close()
 
-        return team #returns a json string if owner is false, otherwise returns (counter, name, team_json_string, timestamp, owner_id)
+        return team, is_soccer_team #returns a json string if owner is false, otherwise returns (counter, name, team_json_string, timestamp, owner_id)
 
 
 
