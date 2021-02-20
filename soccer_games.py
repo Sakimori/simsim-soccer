@@ -151,16 +151,20 @@ class team(object):
             if roster[s_index].name == name:
                 return (roster[s_index], s_index)
 
-    def swap_player(self, name, to_roster):
+    def swap_player(self, name):
         this_player, index, roster = self.find_player(name)
         if this_player is not None and len(roster) > 1:
-            if roster == self.lineup:
-                if self.add_pitcher(this_player):
+            if roster == self.starters:
+                if self.add_sub(this_player):
                     roster.pop(index)
                     return True
-            else:
-                if self.add_lineup(this_player)[0]:
-                    self.rotation.pop(index)
+            elif roster == self.bench:
+                if self.add_goalie(this_player):
+                    roster.pop(index)
+                    return True
+            elif roster == self.goalies:
+                if self.add_starter(this_player)[0]:
+                    roster.pop(index)
                     return True
         return False
 
@@ -174,9 +178,12 @@ class team(object):
 
     def slide_player(self, name, new_spot):
         this_player, index, roster = self.find_player(name)
-        if this_player is not None and new_spot <= len(roster):
+        if this_player is not None and new_spot <= len(roster) and roster == self.goalies:
             roster.pop(index)
-            roster.insert(new_spot-1, this_player)
+            try:
+                roster.insert(new_spot-1, this_player)
+            except:
+                roster.append(this_player)
             return True
         else:
             return False

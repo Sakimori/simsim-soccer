@@ -217,30 +217,6 @@ class StartRandomGameCommand(Command):
 
         game_task = asyncio.create_task(watch_game(channel, game, user="the winds of chaos"))
         await game_task
-
-class SetupGameCommand(Command):
-    name = "setupgame"
-    template = "m;setupgame"
-    description =  "Begins setting up a 3-inning pickup game. Pitchers, lineups, and team names are given during the setup process by anyone able to type in that channel. Idols are easily signed up via emoji during the process. The game will start automatically after setup."
-
-    async def execute(self, msg, command):
-        if len(gamesarray) > 45:
-            await msg.channel.send("We're running 45 games and we doubt Discord will be happy with any more. These edit requests don't come cheap.")
-            return 
-        elif config()["game_freeze"]:
-            await msg.channel.send("Patch incoming. We're not allowing new games right now.")
-            return
-
-        for game in gamesarray:
-            if game.name == msg.author.name:
-                await msg.channel.send("You've already got a game in progress! Wait a tick, boss.")
-                return
-        try:
-            inningmax = int(command)
-        except:
-            inningmax = 3
-        game_task = asyncio.create_task(setup_game(msg.channel, msg.author, games.game(msg.author.name, games.team(), games.team(), length=inningmax)))
-        await game_task
         
 class SaveTeamCommand(Command):
     name = "saveteam"
@@ -271,23 +247,6 @@ If you did it correctly, you'll get a team embed with a prompt to confirm. hit t
         else:
             name = command.split('\n',1)[1].split('\n')[0]
             await msg.channel.send(f"{name} already exists. Try a new name, maybe?")
-
-class ImportCommand(Command):
-    name = "import"
-    template = "m;import [onomancer collection URL]"
-    description = "Imports an onomancer collection as a new team. You can use the new onomancer simsim setting to ensure compatibility. Similarly to saveteam, you'll get a team embed with a prompt to confirm, hit the 👍 and your team will be saved!"
-
-    async def execute(self, msg, command):
-        team_raw = ono.get_collection(command.strip())
-        if not team_raw == None:
-            team_json = json.loads(team_raw)
-            if db.get_team(team_json["fullName"]) == None:
-                team = team_from_collection(team_json)
-                await asyncio.create_task(save_team_confirm(msg, team))
-            else:
-                await msg.channel.send(f"{team_json['fullName']} already exists. Try a new name, maybe?")
-        else:
-            await msg.channel.send("Something went pear-shaped while we were looking for that collection. You certain it's a valid onomancer URL?")
 
 class ShowTeamCommand(Command):
     name = "showteam"
@@ -337,13 +296,13 @@ class SwapPlayerCommand(Command):
     template = """m;swapsection
     [team name]
     [player name]"""
-    description = "Swaps a player from your lineup to the end of your rotation or your rotation to the end of your lineup. Requires team ownership and exact spelling of team name."
+    description = "Rotates a player through your goalies, starters, and then bench. Requires team ownership."
 
     async def execute(self, msg, command):
         try:
             team_name = command.split("\n")[1].strip()
             player_name = command.split("\n")[2].strip()
-            team, owner_id = games.get_team_and_owner(team_name)
+            team, owner_id = soccer_games.get_team(team_name, owner=True)
             if team is None:
                 await msg.channel.send("Can't find that team, boss. Typo?")
                 return
@@ -355,7 +314,7 @@ class SwapPlayerCommand(Command):
                 return
             else:
                 await msg.channel.send(embed=build_team_embed(team))
-                games.update_team(team)
+                soccer_games.save_team(team, owner_id)
                 await msg.channel.send("Paperwork signed, stamped, copied, and faxed up to the goddess. Xie's pretty quick with this stuff.")
         except IndexError:
             await msg.channel.send("Three lines, remember? Command, then team, then name.")
@@ -365,14 +324,14 @@ class MovePlayerCommand(Command):
     template = """m;moveplayer 
     [team name]
     [player name]
-    [new lineup/rotation position number] (indexed with 1 being the top)"""
-    description = "Moves a player within your lineup or rotation. If you want to instead move a player from your rotation to your lineup or vice versa, use m;swapsection instead. Requires team ownership and exact spelling of team name."
+    [new goalie position number] (indexed with 1 being the top)"""
+    description = "Moves a player within the goalie roster. If you want to instead move a player between roster sections, use m;swapsection instead. Requires team ownership and exact spelling of team name."
 
     async def execute(self, msg, command):
         try:
             team_name = command.split("\n")[1].strip()
             player_name = command.split("\n")[2].strip()
-            team, owner_id = games.get_team_and_owner(team_name)
+            team, owner_id = soccer_games.get_team(team_name, owner=True)
             try:
                 new_pos = int(command.split("\n")[3].strip())
             except ValueError:
@@ -382,23 +341,16 @@ class MovePlayerCommand(Command):
                 await msg.channel.send("You're not authorized to mess with this team. Sorry, boss.")
                 return
             else:
-                if team.find_player(player_name)[2] is None or len(team.find_player(player_name)[2]) <= new_pos:
+                if team.find_player(player_name)[2] is None or len(team.find_player(player_name)[2]) < new_pos:
                     await msg.channel.send("You either gave us a number that was bigger than your current roster, or we couldn't find the player on the team. Try again.")
                     return
 
-                if "batter" in command.split("\n")[0].lower():
-                    roster = team.lineup
-                elif "pitcher" in command.split("\n")[0].lower():
-                    roster = team.rotation
-                else:
-                    roster = None
-
-                if (roster is not None and team.slide_player_spec(player_name, new_pos, roster)) or (roster is None and team.slide_player(player_name, new_pos)):
+                if team.slide_player(player_name, new_pos):
                     await msg.channel.send(embed=build_team_embed(team))
-                    games.update_team(team)
+                    soccer_games.save_team(team, owner_id)
                     await msg.channel.send("Paperwork signed, stamped, copied, and faxed up to the goddess. Xie's pretty quick with this stuff.")
                 else:
-                    await msg.channel.send("You either gave us a number that was bigger than your current roster, or we couldn't find the player on the team. Try again.")
+                    await msg.channel.send("You either gave us a number that was bigger than your current roster, or we couldn't find that player in your goalies roster. Try again.")
                     return
 
         except IndexError:
@@ -1243,9 +1195,7 @@ commands = [
     IdolizeCommand(),
     ShowIdolCommand(),
     ShowPlayerCommand(),
-    #SetupGameCommand(),
     SaveTeamCommand(),
-    ImportCommand(),
     SwapPlayerCommand(),
     MovePlayerCommand(),
     AddPlayerCommand(),
