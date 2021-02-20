@@ -328,46 +328,30 @@ class game(object):
             else:
                 return self.teams["left"].goalie
 
-def get_team(name):
-    #try:
-    team_tuple, is_soccer = db.get_team(name, owner=True)
-    team_json = jsonpickle.decode(team_tuple[2], keys=True, classes=(team, games.team))
-    if team_json is not None:
-        if not is_soccer: #detects baseball teams, converts
-            convert_team = team()
-            convert_team.name = team_json.name
-            convert_team.slogan = team_json.slogan
-            for pitcher in team_json.rotation:
-                convert_team.add_goalie(player(json.dumps(pitcher.stlats)))
-            for index in range(0,len(team_json.lineup)-1):
-                convert_team.add_starter(player(json.dumps(team_json.lineup[index].stlats)))
-            convert_team.add_sub(player(json.dumps(team_json.lineup[len(team_json.lineup)-1].stlats)))
-            save_team(convert_team, team_tuple[4])
-            team_json = convert_team
-        return team_json
-    return None
-    #except:
-        #return None
-
-def get_team_and_owner(name):
+def get_team(name, owner=False):
     try:
-        counter, name, team_json_string, timestamp, owner_id = db.get_team(name, owner=True)
-        team_json = jsonpickle.decode(team_json_string, keys=True, classes=team)
+        team_tuple, is_soccer = db.get_team(name, owner=True)
+        team_json = jsonpickle.decode(team_tuple[2], keys=True, classes=(team, games.team))
         if team_json is not None:
-            if team_json.pitcher is not None: #detects old-format teams, adds pitcher
-                team_json.rotation.append(team_json.pitcher)
-                team_json.pitcher = None
-                update_team(team_json)
-            return (team_json, owner_id)
+            if not is_soccer: #detects baseball teams, converts
+                convert_team = team()
+                convert_team.name = team_json.name
+                convert_team.slogan = team_json.slogan
+                for pitcher in team_json.rotation:
+                    convert_team.add_goalie(player(json.dumps(pitcher.stlats)))
+                for index in range(0,len(team_json.lineup)-1):
+                    convert_team.add_starter(player(json.dumps(team_json.lineup[index].stlats)))
+                convert_team.add_sub(player(json.dumps(team_json.lineup[len(team_json.lineup)-1].stlats)))
+                save_team(convert_team, team_tuple[4])
+                team_json = convert_team
+            if not owner:            
+                return team_json
+            else:
+                return (team_json, team_tuple[4])
         return None
-    except AttributeError:
-        team_json.rotation = []
-        team_json.rotation.append(team_json.pitcher)
-        team_json.pitcher = None
-        update_team(team_json)
-        return (team_json, owner_id)
     except:
         return None
+
 
 def save_team(this_team, user_id):
     #try:
