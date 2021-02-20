@@ -215,8 +215,9 @@ def save_team(name, team_json_string, user_id):
         if conn is not None:
             c = conn.cursor()
             store_string = """ INSERT INTO soccer_teams(name, team_json_string, timestamp, owner_id)
-                            VALUES (?,?, ?, ?) """
-            c.execute(store_string, (re.sub('[^A-Za-z0-9 ]+', '', name), team_json_string, datetime.datetime.now(datetime.timezone.utc), user_id)) #this regex removes all non-standard characters
+                            VALUES (?,?, ?, ?) 
+                            ON CONFLICT(name) DO UPDATE SET team_json_string = ? WHERE name=?"""
+            c.execute(store_string, (re.sub('[^A-Za-z0-9 ]+', '', name), team_json_string, datetime.datetime.now(datetime.timezone.utc), user_id, team_json_string, re.sub('[^A-Za-z0-9 ]+', '', name))) #this regex removes all non-standard characters
             conn.commit() 
             conn.close()
             return True
@@ -227,23 +228,23 @@ def save_team(name, team_json_string, user_id):
     conn.close()
     return False
 
-def update_team(name, team_json_string):
-    conn = create_connection()
-    try:
-        if conn is not None:
-            c = conn.cursor()
-            store_string = "UPDATE soccer_teams SET team_json_string = ? WHERE name=?"
-            c.execute(store_string, (team_json_string, (re.sub('[^A-Za-z0-9 ]+', '', name)))) #this regex removes all non-standard characters
-            conn.commit() 
-            conn.close()
-            return True
-        conn.close()
-        return False
-    except:
-        conn.close()
-        return False
-    conn.close()
-    return False
+#def update_team(name, team_json_string):
+#    conn = create_connection()
+#    try:
+#        if conn is not None:
+#            c = conn.cursor()
+#            store_string = "UPDATE soccer_teams SET team_json_string = ? WHERE name=?"
+#            c.execute(store_string, (team_json_string, (re.sub('[^A-Za-z0-9 ]+', '', name)))) #this regex removes all non-standard characters
+#            conn.commit() 
+#            conn.close()
+#            return True
+#        conn.close()
+#        return False
+#    except:
+#        conn.close()
+#        return False
+#    conn.close()
+#    return False
 
 def get_team(name, owner=False):
     conn = create_connection()

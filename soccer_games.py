@@ -354,13 +354,13 @@ def get_team(name, owner=False):
 
 
 def save_team(this_team, user_id):
-    #try:
-    this_team.prepare_for_save()
-    team_json_string = jsonpickle.encode(this_team, keys=True)
-    db.save_team(this_team.name, team_json_string, user_id)
-    return True
-    #except:
-        #return None
+    try:
+        this_team.prepare_for_save()
+        team_json_string = jsonpickle.encode(this_team, keys=True)
+        db.save_team(this_team.name, team_json_string, user_id)
+        return True
+    except:
+        return None
 
 def update_team(this_team):
     try:
