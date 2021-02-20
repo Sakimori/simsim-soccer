@@ -358,36 +358,43 @@ class MovePlayerCommand(Command):
 
 class AddPlayerCommand(Command):
     name = "addplayer"
-    template = """m;addplayer pitcher (or m;addplayer batter)
+    template = """m;addplayer [goalie or starter or bench]
     [team name]
     [player name]"""
-    description = "Adds a new player to the end of your team, either in the lineup or the rotation depending on which version you use. Requires team ownership and exact spelling of team name."
+    description = "Adds a new player to the end of your team, in the given roster section. Requires team ownership and exact spelling of team name."
 
     async def execute(self, msg, command):
         try:
             team_name = command.split("\n")[1].strip()
             player_name = command.split("\n")[2].strip()
-            team, owner_id = games.get_team_and_owner(team_name)
+            team, owner_id = soccer_games.get_team(team_name, owner=True)
             if owner_id != msg.author.id and msg.author.id not in config()["owners"]:
                 await msg.channel.send("You're not authorized to mess with this team. Sorry, boss.")
                 return
 
-            new_player = games.player(ono.get_stats(player_name))
+            new_player = soccer_games.player(ono.get_stats(player_name))
 
-            if "batter" in command.split("\n")[0].lower():
-                if not team.add_lineup(new_player)[0]:
-                    await msg.channel.send("Too many batters 🎶")
+            if "goalie" in command.split("\n")[0].lower():
+                if not team.add_goalie(new_player):
+                    await msg.channel.send("Too many goalies 🎶")
                     return
-            elif "pitcher" in command.split("\n")[0].lower():
-                if not team.add_pitcher(new_player):
-                    await msg.channel.send("8 pitchers is quite enough, we think.")
+
+            elif "starter" in command.split("\n")[0].lower():
+                if not team.add_starter(new_player):
+                    await msg.channel.send("You can't put that many people on a football pitch.")
                     return
+
+            elif "bench" in command.split("\n")[0].lower():
+                if not team.add_sub(new_player):
+                    await msg.channel.send("That's too many benchwarmers, chief. Let the kids have some fun.")
+                    return
+
             else:
-                await msg.channel.send("You have to tell us if you want a pitcher or a batter, boss. Just say so in the first line, with the command.")
+                await msg.channel.send("You have to tell us what roster section you want, boss. Just say so in the first line, with the command.")
                 return
 
             await msg.channel.send(embed=build_team_embed(team))
-            games.update_team(team)
+            soccer_games.save_team(team, owner_id)
             await msg.channel.send("Paperwork signed, stamped, copied, and faxed up to the goddess. Xie's pretty quick with this stuff.")
         except IndexError:
             await msg.channel.send("Three lines, remember? Command, then team, then name.")
@@ -403,7 +410,7 @@ class RemovePlayerCommand(Command):
         try:
             team_name = command.split("\n")[1].strip()
             player_name = command.split("\n")[2].strip()
-            team, owner_id = games.get_team_and_owner(team_name)
+            team, owner_id = soccer_games.get_team(team_name, owner=True)
             if owner_id != msg.author.id and msg.author.id not in config()["owners"]:
                 await msg.channel.send("You're not authorized to mess with this team. Sorry, boss.")
                 return
@@ -414,7 +421,7 @@ class RemovePlayerCommand(Command):
 
             else:
                 await msg.channel.send(embed=build_team_embed(team))
-                games.update_team(team)
+                soccer_games.save_team(team, owner_id)
                 await msg.channel.send("Paperwork signed, stamped, copied, and faxed up to the goddess. Xie's pretty quick with this stuff.")
         except IndexError:
             await msg.channel.send("Three lines, remember? Command, then team, then name.")
@@ -432,29 +439,33 @@ class ReplacePlayerCommand(Command):
             team_name = command.split("\n")[1].strip()
             remove_name = command.split("\n")[2].strip()
             add_name = command.split("\n")[3].strip()
-            team, owner_id = games.get_team_and_owner(team_name)
+            team, owner_id = soccer_games.get_team(team_name, owner=True)
             if owner_id != msg.author.id and msg.author.id not in config()["owners"]:
                 await msg.channel.send("You're not authorized to mess with this team. Sorry, boss.")
                 return
 
             old_player, old_pos, old_list = team.find_player(remove_name)
-            new_player = games.player(ono.get_stats(add_name))
+            new_player = soccer_games.player(ono.get_stats(add_name))
 
             if old_player is None:
                 await msg.channel.send("We've got bad news: that player isn't on your team. The good news is that... that player isn't on your team?")
                 return
 
             else:
-                if old_list == team.lineup:
+                if old_list == team.goalies:
                     team.delete_player(remove_name)
-                    team.add_lineup(new_player)
+                    team.add_goalie(new_player)
+                    team.slide_player(add_name, old_pos+1)
+                elif old_list == team.starters:
+                    team.delete_player(remove_name)
+                    team.add_starter(new_player)
                     team.slide_player(add_name, old_pos+1)
                 else:
                     team.delete_player(remove_name)
-                    team.add_pitcher(new_player)
+                    team.add_sub(new_player)
                     team.slide_player(add_name, old_pos+1)
                 await msg.channel.send(embed=build_team_embed(team))
-                games.update_team(team)
+                soccer_games.save_team(team, owner_id)
                 await msg.channel.send("Paperwork signed, stamped, copied, and faxed up to the goddess. Xie's pretty quick with this stuff.")
         except IndexError:
             await msg.channel.send("Four lines, remember? Command, then team, then the two names.")
@@ -486,7 +497,7 @@ class DeleteTeamCommand(Command):
 
     async def execute(self, msg, command):
         team_name = command.strip()
-        team, owner_id = games.get_team_and_owner(team_name)
+        team, owner_id = soccer_games.get_team(team_name, owner=True)
         if owner_id != msg.author.id and msg.author.id not in config()["owners"]: #returns if person is not owner and not bot mod
             await msg.channel.send("That team ain't yours, chief. If you think that's not right, bug xvi about deleting it for you.")
             return
