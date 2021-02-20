@@ -312,7 +312,7 @@ class game(object):
 
     def __init__(self, team1, team2, length=None):
         self.over = False
-        self.teams = {"left" : team1, "right" : team2}
+        self.teams = {"away" : team1, "home" : team2} #away on the left, home on right
         self.current_time = timedelta(hour=0,minute=0,second=0)
         self.cards = {} #player: card number
         self.injuries = []
@@ -330,10 +330,10 @@ class game(object):
         self.weather = weather("Sunny","🌞")
 
         def get_goalie(self):
-            if self.posession["team"] == self.teams["left"]:
-                return self.teams["right"].goalie
+            if self.posession["team"] == self.teams["home"]:
+                return self.teams["away"].goalie
             else:
-                return self.teams["left"].goalie
+                return self.teams["home"].goalie
 
 def get_team(name, owner=False):
     try:
