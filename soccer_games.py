@@ -381,18 +381,9 @@ def get_all_teams():
 def search_team(search_term):
     teams = []
     for team_pickle in db.search_teams(search_term):
-        team_json = jsonpickle.decode(team_pickle[0], keys=True, classes=team)
-        try:         
-            if team_json.pitcher is not None:
-                if len(team_json.rotation) == 0: #detects old-format teams, adds pitcher
-                    team_json.rotation.append(team_json.pitcher)
-                    team_json.pitcher = None
-                    update_team(team_json)
-        except AttributeError:
-            team_json.rotation = []
-            team_json.rotation.append(team_json.pitcher)
-            team_json.pitcher = None
-            update_team(team_json)
+        team_object = jsonpickle.decode(team_pickle[0], keys=True, classes=(team, games.team))
+        try:
+            team_json = get_team(team_object.name)
         except:
             return None
 

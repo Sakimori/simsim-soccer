@@ -317,11 +317,14 @@ def get_all_teams():
     conn.close()
     return None
 
-def search_teams(search_string):
+def search_teams(search_string, baseball=False, all_sports=True):
     conn = create_connection()
     if conn is not None:
         c = conn.cursor()
-        c.execute("SELECT team_json_string FROM soccer_teams WHERE name LIKE ?",(re.sub('[^A-Za-z0-9 %]+', '', f"%{search_string}%"),))
+        if not baseball or all_sports:
+            c.execute("SELECT team_json_string FROM soccer_teams WHERE name LIKE ?",(re.sub('[^A-Za-z0-9 %]+', '', f"%{search_string}%"),))
+        if baseball or all_sports:
+            c.execute("SELECT team_json_string FROM teams WHERE name LIKE ?",(re.sub('[^A-Za-z0-9 %]+', '', f"%{search_string}%"),))
         team_json_strings = c.fetchall()
         conn.close()
         return team_json_strings

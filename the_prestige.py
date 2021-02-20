@@ -321,7 +321,7 @@ class SearchTeamsCommand(Command):
         if len(search_term) > 30:
             await msg.channel.send("Team names can't even be that long, chief. Try something shorter.")
             return
-        list_task = asyncio.create_task(team_pages(msg, games.search_team(search_term), search_term=search_term))
+        list_task = asyncio.create_task(team_pages(msg, soccer_games.search_team(search_term), search_term=search_term))
         await list_task
 
 class CreditCommand(Command):
@@ -1812,6 +1812,7 @@ def build_team_embed(team):
     return embed
 
 def build_star_embed(player_json):
+    player_json = soccer_games.player(json.dumps(player_json)).stlats
     starkeys = {"goalkeeping_stars" : "Goalkeeping", "striking_stars" : "Striking", "speed_stars" : "Speed", "ballhandling_stars" : "Ball Handling"}
     embed = discord.Embed(color=discord.Color.purple(), title=player_json["name"])
     for key in starkeys.keys():
