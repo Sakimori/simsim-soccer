@@ -24,7 +24,8 @@ def config():
                         "shot_success" : 0,
                         "save_deflect_chance" : 0.50,
                         "pass_success" : 0,
-                        "steal_roll_mult" : 1
+                        "steal_roll_mult" : 1,
+                        "tackle_success" : 0
                     }
             }
         with open(games_config_file, "w") as config_file:
@@ -363,16 +364,16 @@ class game(object):
             shot_roll = random.gauss(0.5*math.erf((shot_stat-2)/4)-0.2,3)
 
             if shot_roll < config()["rng_breakpoints"]["shot_on_target"]:
-                return (game_events.shot_miss, game_events.shot_miss.value.format(goalie.name))
+                return (game_events.shot_miss, shooter.name + game_events.shot_miss.value.format(goalie.name))
             else:
                 save_roll = random.gauss(math.erf((save_stat-shot_stat+2)/4), 1.5)
                 if save_roll > config()["rng_breakpoints"]["shot_success"]:
                     if random.random() < (config()["rng_breakpoints"]["save_deflect_chance"]-(5*save_stat/100)):
-                        return (game_events.shot_save_deflect, game_events.shot_save_deflect.value.format(goalie.name))
+                        return (game_events.shot_save_deflect, shooter.name + game_events.shot_save_deflect.value.format(goalie.name))
                     else:
-                        return (game_events.shot_save_capture, game_events.shot_save_capture.value.format(goalie.name))
+                        return (game_events.shot_save_capture, shooter.name + game_events.shot_save_capture.value.format(goalie.name))
                 else:
-                    return (game_events.shot_goal, game_events.shot_goal.value)
+                    return (game_events.shot_goal, shooter.name + game_events.shot_goal.value)
 
         def head_shot(self, shooter, goalie, difficulty=1): #returns a (game_event, string) where game_event is the actual game event and string = output text already formatted
                                                             #shot roll is divided by difficulty
@@ -382,16 +383,16 @@ class game(object):
             shot_roll = random.gauss(0.5*math.erf((shot_stat-2)/4)-0.2,3) / difficulty
 
             if shot_roll < config()["rng_breakpoints"]["shot_on_target"]:
-                return (game_events.head_miss, game_events.head_miss.value.format(goalie.name))
+                return (game_events.head_miss, shooter.name + game_events.head_miss.value.format(goalie.name))
             else:
                 save_roll = random.gauss(math.erf((save_stat-shot_stat+2)/4), 1.5)
                 if save_roll > config()["rng_breakpoints"]["shot_success"]:
                     if random.random() < (config()["rng_breakpoints"]["save_deflect_chance"]-(5*save_stat/100)):
-                        return (game_events.head_save_deflect, game_events.head_save_deflect.value.format(goalie.name))
+                        return (game_events.head_save_deflect, shooter.name + game_events.head_save_deflect.value.format(goalie.name))
                     else:
-                        return (game_events.head_save_capture, game_events.head_save_capture.value.format(goalie.name))
+                        return (game_events.head_save_capture, shooter.name + game_events.head_save_capture.value.format(goalie.name))
                 else:
-                    return (game_events.head_goal, game_events.head_goal.value)
+                    return (game_events.head_goal, shooter.name + game_events.head_goal.value)
 
         def pass_attempt(self, passer, defender, reciever, difficulty = 1): #returns a (game_event, string) where game_event is the actual game event and string = output text already formatted
                                                                             #interception roll is multiplied by difficulty
@@ -401,13 +402,20 @@ class game(object):
             pass_roll = random.gauss(0.5*math.erf((pass_stat)/15)+0.8,0.8)
 
             if pass_roll < config()["rng_breakpoints"]["pass_success"]:
-                return (game_events.pass_miss, game_events.pass_miss.value.format(reciever.name))
+                return (game_events.pass_miss, passer.name + game_events.pass_miss.value.format(reciever.name))
             else:
                 steal_roll = random.gauss(0.25*math.erf(steal_stat/4)-0.25,0.5) * config()["rng_breakpoints"]["steal_roll_mult"] * difficulty
                 if steal_roll > pass_roll:
-                    return (game_events.pass_intercepted, f"{game_events.pass_intercepted.value.format(reciever.name)} {defender.name}!" )
+                    return (game_events.pass_intercepted, passer.name + f"{game_events.pass_intercepted.value.format(reciever.name)} {defender.name}!" )
                 else:
-                    return (game_events.pass_success, f"{game_events.pass_success.value} {reciever.name}.")
+                    return (game_events.pass_success, passer.name + f"{game_events.pass_success.value} {reciever.name}.")
+
+        def tackle(self, holder, tackler): #returns a (game_event, string) where game_event is the actual game event and string = output text already formatted
+            system_stat = random_star_gen("speed_stars", tackler) - random_star_gen("ballhandling_stars", holder)
+            tackle_roll = random.gauss(math.erf((system_stat+2)/4), 1.5)
+
+            #if tackle_roll > config()["rng_breakpoints"]["tackle_success"]:
+                #return (game_events.tackles_in)
 
 
 
