@@ -1089,9 +1089,7 @@ commands = [
     LeagueForceStopCommand(),
     CreditCommand(),
     RomanCommand(),
-    HelpCommand(),
-    StartDraftCommand(),
-    DraftPlayerCommand()
+    HelpCommand()
 ]
 
 watching = False
@@ -2120,6 +2118,20 @@ async def league_postseason(channel, league):
     season_save(league)
     league.season_reset()
 
+debugDic = {
+        "shots" : 0,
+        "goals" : 0,
+        "misses" : 0,
+        "saves" : 0,
+        "save_deflects" : 0,
+        "save_captures" : 0
+    }
+shooter = soccer_games.player(ono.get_stats("Baskerville MT"))
+goalie = soccer_games.player(ono.get_stats("Shape Batteries"))
 
+for stat in debugDic.keys():
+    print(stat)
+    print(debugDic[stat])
+    print("")
 
 client.run(config()["token"])

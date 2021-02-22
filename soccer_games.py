@@ -1,5 +1,5 @@
 import json, random, os, math, jsonpickle, games
-from enum import Enum
+from enum import Enum, IntEnum
 from datetime import time, timedelta
 import database as db
 
@@ -14,10 +14,16 @@ def config():
         config_dic = {
                 "default_length" : 90,
                 "stlat_weights" : {
-                        #what stats am i even going to use??????
+                        "speed_stars" : 1.0,
+                        "striking_stars" : 1.0,
+                        "goalkeeping_stars" : 1.0,
+                        "ballhandling_stars" : 1.0
                     },
                 "rng_breakpoints" : {
-                    
+                        "shot_on_target" : 0,
+                        "shot_success" : 0,
+                        "save_deflect_chance" : 0.50,
+                        "pass_success" : 0
                     }
             }
         with open(games_config_file, "w") as config_file:
@@ -266,20 +272,25 @@ class soccer_ball(object):
         self.y = 0.5
 
     def position(self):
+        if self.y > 0.86:
+            pos_int = 2
+        elif self.y > 0.13:
+            pos_int = 1
+        else:
+            pos_int = 3
+
         if self.x < 0.09:
-            if self.y > 0.13 and self.y < 0.86:
-                return ball_locations.left_penalty
-            else:
-                return ball_locations.left_sides
+            pos_int += 0 #here to prevent future oopses
         elif self.x < 0.33:
-            return ball_locations.left_field
+            pos_int += 3
         elif self.x < 0.67:
-            return ball_locations.center
+            pos_int += 6
         elif self.x < 0.91:
-            if self.y > 0.13 and self.y < 0.86:
-                return ball_locations.right_penalty
-            else:
-                return ball_locations.right_sides
+            pos_int += 9
+        else:
+            pos_int += 12
+        
+        return ball_locations(pos_int)
 
     def corner_kick_pos(self, top, left):
         if top:
@@ -298,14 +309,22 @@ class soccer_ball(object):
             self.x = 0.94
         self.y = (random.random()*0.33)+0.33
 
-class ball_locations(Enum):
+class ball_locations(IntEnum):
     left_penalty = 1
-    left_sides = 2
-    left_field = 3
-    center = 4
-    right_field = 5
-    right_sides = 6
-    right_penalty = 7
+    left_penalty_top = 2
+    left_penalty_bot = 3
+    left_field = 4
+    left_field_top = 5
+    left_field_bot = 6
+    center = 7
+    center_top = 8
+    center_bot = 9
+    right_field = 10
+    right_field_top = 11
+    right_field_bot = 12
+    right_penalty = 13
+    right_penalty_top = 14
+    right_penalty_bot = 15
 
 
 class game(object):
@@ -334,6 +353,24 @@ class game(object):
                 return self.teams["away"].goalie
             else:
                 return self.teams["home"].goalie
+
+        def shot(self, shooter, goalie): #returns a (game_event, string) where game_event is the actual game event and string = output text already formatted
+            shot_stat = random_star_gen("striking_stars", shooter)
+            save_stat = random_star_gen("goalkeeping_stars", goalie)
+
+            shot_roll = random.gauss(0.5*math.erf((shot_stat-2)/4)-0.2,3)
+
+            if shot_roll < config()["rng_breakpoints"]["shot_on_target"]:
+                return (game_events.shot_miss, game_events.shot_miss.value.format(goalie.name))
+            else:
+                save_roll = random.gauss(math.erf((save_stat-shot_stat+2)/4), 1.5)
+                if save_roll > config()["rng_breakpoints"]["shot_success"]:
+                    if random.random() < (config()["rng_breakpoints"]["save_deflect_chance"]-(5*save_stat/100)):
+                        return (game_events.shot_save_deflect, game_events.shot_save_deflect.value.format(goalie.name))
+                    else:
+                        return (game_events.shot_save_capture, game_events.shot_save_capture.value.format(goalie.name))
+                else:
+                    return (game_events.shot_goal, game_events.shot_goal.value)
 
 def get_team(name, owner=False):
     try:
@@ -396,4 +433,8 @@ def search_team(search_term):
 
         teams.append(team_json)
     return teams
+
+def random_star_gen(key, player):
+    return random.gauss(config()["stlat_weights"][key] * player.stlats[key],0.75)
+
 config()
