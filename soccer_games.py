@@ -23,7 +23,8 @@ def config():
                         "shot_on_target" : 0,
                         "shot_success" : 0,
                         "save_deflect_chance" : 0.50,
-                        "pass_success" : 0
+                        "pass_success" : 0,
+                        "steal_roll_mult" : 1
                     }
             }
         with open(games_config_file, "w") as config_file:
@@ -371,6 +372,21 @@ class game(object):
                         return (game_events.shot_save_capture, game_events.shot_save_capture.value.format(goalie.name))
                 else:
                     return (game_events.shot_goal, game_events.shot_goal.value)
+
+        def pass_attempt(self, passer, defender, reciever): #returns a (game_event, string) where game_event is the actual game event and string = output text already formatted
+            pass_stat = max(random_star_gen("striking_stars", passer), random_star_gen("ballhandling_stars", passer))
+            steal_stat = max(random_star_gen("speed_stars", defender), random_star_gen("ballhandling_stars", defender))
+
+            pass_roll = random.gauss(0.5*math.erf((pass_stat)/15)+0.8,0.8)
+
+            if pass_roll < config()["rng_breakpoints"]["pass_success"]:
+                return (game_events.pass_miss, game_events.pass_miss.value.format(reciever.name))
+            else:
+                steal_roll = random.gauss(0.25*math.erf(steal_stat/4)-0.25,0.5) * config()["rng_breakpoints"]["steal_roll_mult"]
+                if steal_roll > pass_roll:
+                    return (game_events.pass_intercepted, f"{game_events.pass_intercepted.value.format(reciever.name)} {defender.name}!" )
+                else:
+                    return (game_events.pass_success, f"{game_events.pass_success.value} {reciever.name}.")
 
 def get_team(name, owner=False):
     try:

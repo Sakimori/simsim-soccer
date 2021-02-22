@@ -2119,15 +2119,16 @@ async def league_postseason(channel, league):
     league.season_reset()
 
 debugDic = {
-        "shots" : 0,
-        "goals" : 0,
-        "misses" : 0,
-        "saves" : 0,
-        "save_deflects" : 0,
-        "save_captures" : 0
+        "attempts" : 0,
+        "succeed" : 0,
+        "miss" : 0,
+        "intercepted" : 0
     }
-shooter = soccer_games.player(ono.get_stats("Baskerville MT"))
-goalie = soccer_games.player(ono.get_stats("Shape Batteries"))
+passer = soccer_games.player(ono.get_stats("Shape Batteries"))
+defender = soccer_games.player(ono.get_stats("Vriska Serket"))
+
+#while debugDic["attempts"] < 50000:
+
 
 for stat in debugDic.keys():
     print(stat)
